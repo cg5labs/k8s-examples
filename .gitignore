@@ -1,3 +1,4 @@
 *.swp
 *.hcl
 .terraform
+.DS_Store

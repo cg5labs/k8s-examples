@@ -1,0 +1,20 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: app01-b
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      bucket: app01-b
+  template:
+    metadata:
+      labels:
+        bucket: app01-b
+        app: app01
+    spec:
+      containers:
+      - image: hashicorp/http-echo
+        name: http-echo
+        args:
+          - "-text=app01-b-test"
