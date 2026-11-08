@@ -47,3 +47,40 @@ $ k apply -f elasticsearch/es-customizer-cm.yaml
 $ k apply -f elasticsearch/es-customizer-job.yaml
 ```
 Dependencies: $ES_API_AUTH secret var from secret elk-es-elastic-user
+
+## Kibana TLS with Traefik
+
+The Argo CD application deploys `elk-instance/` into `monitoring`.
+Traefik passes TLS through to Kibana, which presents the cert-manager certificate
+from `es-tls` instead of an ECK-generated self-signed certificate.
+
+```mermaid
+flowchart LR
+    Client[LAN client] -->|HTTPS es.cg5labs.net| Traefik
+    Traefik -->|TLS passthrough, port 5601| Kibana
+    CertManager[cert-manager] -->|Issues and renews| Secret[monitoring/es-tls]
+    Secret -->|Certificate and private key| Kibana
+```
+
+- **Traefik:** Uses `traefik-external` and `websecure`, routes by SNI, and retains
+  the `192.168.17.0/24` TCP allowlist. It does not terminate TLS or load `es-tls`.
+- **Kibana:** References `spec.http.tls.certificate.secretName: es-tls`; the Secret
+  must be in the same namespace and contain `tls.crt` and `tls.key`.
+- **cert-manager:** The explicit `Certificate` in `es-cg5labs-net.yaml` replaces
+  the old nginx Ingress's certificate issuance annotation and maintains `es-tls`.
+  It requires the namespaced `Issuer` `monitoring/letsencrypt-production`.
+  Keep that Issuer's ACME challenge solver functional independently of the
+  retired nginx controller; cert-manager does not infer issuance from Traefik CRDs.
+
+Sync the Argo CD application, or apply the manifests directly:
+
+```sh
+kubectl apply -f elasticsearch/elk-instance/es-cg5labs-net.yaml
+kubectl wait -n monitoring --for=condition=Ready certificate/es-tls --timeout=180s
+kubectl apply -n monitoring -f elasticsearch/elk-instance/kibana.yaml
+kubectl rollout status -n monitoring deployment/elk-kb
+curl -Iv https://es.cg5labs.net
+```
+
+Run the URL check from an allowed LAN address without `-k` so certificate trust
+and hostname verification remain enabled. Do not reapply `es-ingress.yaml.nginx`.

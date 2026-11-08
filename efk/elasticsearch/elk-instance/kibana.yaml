@@ -2,10 +2,15 @@ apiVersion: kibana.k8s.elastic.co/v1
 kind: Kibana
 metadata:
   name: elk
+  namespace: monitoring
 spec:
   version: 8.5.2
   count: 1
   elasticsearchRef:
     name: elk
+  http:
+    tls:
+      certificate:
+        secretName: es-tls
   config:
     server.publicBaseUrl: "https://es.cg5labs.net"

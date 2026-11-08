@@ -1,3 +1,16 @@
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: es-tls
+  namespace: monitoring
+spec:
+  secretName: es-tls
+  dnsNames:
+    - es.cg5labs.net
+  issuerRef:
+    name: letsencrypt-production
+    kind: Issuer
+---
 apiVersion: traefik.io/v1alpha1
 kind: MiddlewareTCP
 metadata:
@@ -20,7 +33,6 @@ metadata:
   annotations:
     kubernetes.io/ingress.class: traefik-external
 spec:
-  ingressClassName: traefik-external
   entryPoints:
     - websecure
   routes:
@@ -31,4 +43,5 @@ spec:
         - name: elk-kb-http
           port: 5601
   tls:
+    # Kibana terminates TLS with es-tls; Traefik forwards the encrypted connection.
     passthrough: true
