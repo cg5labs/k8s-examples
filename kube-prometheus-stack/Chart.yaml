@@ -2,7 +2,7 @@ apiVersion: v2
 name: kube-prometheus-stack
 description: Wrapper chart for kube-prometheus-stack for customization
 type: application
-version: "45.25.4"
+version: "45.25.5"
 appVersion: "45.25.0"
 dependencies:
 - name: kube-prometheus-stack

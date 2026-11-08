@@ -10,14 +10,14 @@ prometheus-operator:
   namespaces:
     releaseNamespace: true
     additional:
-    - ingress-nginx
+    - traefik-ext
 
 ingress:
   enabled: true
   class:
-    name: "external-nginx"
+    name: "traefik-external"
   annotations: 
-    kubernetes.io/ingress.class: "external-nginx"
+    kubernetes.io/ingress.class: "traefik-external"
     cert-manager.io/issuer: "letsencrypt-production"
     nginx.ingress.kubernetes.io/whitelist-source-range: 192.168.17.0/24
   hosts:
