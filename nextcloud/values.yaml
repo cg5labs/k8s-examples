@@ -22,38 +22,6 @@ replicaCount: 1
 ##
 ingress:
   enabled: false
-  ingressClassName: "external-nginx"
-  className: "external-nginx"
-  annotations: 
-    cert-manager.io/issuer: letsencrypt-production
-    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
-    #kubernetes.io/ingress.class: ingress-nginx
-    nginx.ingress.kubernetes.io/proxy-body-size: 24m
-  #  nginx.ingress.kubernetes.io/whitelist-source-range: 192.168.17.0/24
-  #  nginx.ingress.kubernetes.io/proxy-body-size: 4G
-  #  kubernetes.io/tls-acme: "true"
-    nginx.ingress.kubernetes.io/server-snippet: |-
-      server_tokens off;
-      proxy_hide_header X-Powered-By;
-      rewrite ^/.well-known/webfinger /index.php/.well-known/webfinger last;
-      rewrite ^/.well-known/nodeinfo /index.php/.well-known/nodeinfo last;
-      rewrite ^/.well-known/host-meta /public.php?service=host-meta last;
-      rewrite ^/.well-known/host-meta.json /public.php?service=host-meta-json;
-      rewrite ^/\.well-known/carddav https://$server_name/remote.php/dav/ redirect;
-      rewrite ^/\.well-known/caldav https://$server_name/remote.php/dav/ redirect;
-    
-      location = /robots.txt {
-       allow all;
-        log_not_found off;
-        access_log off;
-      }
-      location ~ ^/(?:build|tests|config|lib|3rdparty|templates|data)/ {
-        deny all;
-      }
-      location ~ ^/(?:autotest|occ|issue|indie|db_|console) {
-        deny all;
-      }
-
   tls:
     - secretName: nc-tls
       hosts:
