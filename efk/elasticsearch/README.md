@@ -41,12 +41,48 @@ vagrant@cluster1-master1:~$ kubectl port-forward --address 10.0.2.15 service/elk
 ```
 
 ## ELK cluster customization
-Config-as-code for index template:
+The target cluster intentionally runs one Elasticsearch data node. A replica shard
+cannot share a node with its primary, so log indices must use zero replicas to
+reach green health. Replica counts belong to indices, not `nodeSets.config`.
+
+```mermaid
+flowchart LR
+    Argo[Argo sync elk-instance] --> Config[es-customizer ConfigMap]
+    Argo --> Job[PostSync escustomizer Job]
+    Config --> Job
+    Secret[Elasticsearch user and CA Secrets] --> Job
+    Job --> API[elk-es-http.monitoring.svc:9200]
+    API --> Indices[Zero-replica log indices]
 ```
-$ k apply -f elasticsearch/es-customizer-cm.yaml
-$ k apply -f elasticsearch/es-customizer-job.yaml
+
+The existing customizer manifests now live in `elk-instance/`, where the
+`elasticsearch-instance` Argo Application includes them automatically.
+The Job runs sequentially:
+
+1. Creates the existing `hot-warm-delete` ILM policy and zero-replica Logstash template.
+2. Creates a zero-replica `fluent-bit-*` template for future daily Fluent Bit indices.
+3. Sets existing `fluent-bit-*` and `logstash-*` indices to zero replicas and disables automatic replica expansion.
+4. Waits up to 60 seconds for green cluster health, failing visibly if unassigned shards remain.
+
+Authentication uses the `elastic` key from `monitoring/elk-es-elastic-user`.
+HTTPS verifies the service certificate using `elk-es-http-certs-public/ca.crt`.
+The PostSync hook is recreated for each full sync; successful Jobs are removed,
+while failed Jobs remain available for inspection. Selective sync does not run hooks.
+
+For a manual run from the repository root:
+
+```sh
+kubectl apply -f efk/elasticsearch/elk-instance/es-customizer-cm.yaml
+kubectl apply -f efk/elasticsearch/elk-instance/es-customizer-job.yaml
+kubectl wait -n monitoring --for=condition=complete job/escustomizer --timeout=600s
+kubectl logs -n monitoring job/escustomizer
 ```
-Dependencies: $ES_API_AUTH secret var from secret elk-es-elastic-user
+
+For subsequent manual runs, delete only the previous `escustomizer` Job before
+applying it again. Zero replicas provide no redundant shard copy; retain backups.
+This customizer deliberately leaves system indices and unrelated index templates
+unchanged. Other indices with replicas can still make the cluster yellow and
+need their own index/template settings.
 
 ## Kibana TLS with Traefik
 

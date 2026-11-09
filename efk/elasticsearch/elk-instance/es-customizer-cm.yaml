@@ -1,0 +1,117 @@
+apiVersion: v1
+data:
+  it_fluent-bit.json: |
+    {
+      "index_patterns": ["fluent-bit-*"],
+      "priority": 200,
+      "template": {
+        "settings": {
+          "index": {
+            "lifecycle": {
+              "name": "hot-warm-delete"
+            },
+            "number_of_shards": "1",
+            "number_of_replicas": "0"
+          }
+        }
+      }
+    }
+  single-node-settings.json: |
+    {
+      "index": {
+        "number_of_replicas": 0,
+        "auto_expand_replicas": "false"
+      }
+    }
+  customize.sh: |
+    #!/bin/sh
+    set -eu
+
+    es_request() {
+      curl --silent --show-error --fail-with-body \
+        --connect-timeout 10 --max-time 90 \
+        --cacert /certs/ca.crt \
+        --user "elastic:${ES_API_AUTH}" \
+        --header "Content-Type: application/json" \
+        "$@"
+    }
+
+    es_request --request PUT --data-binary @/config/ilp_hot-warm-delete.json \
+      "${ES_URL_BASE}/_ilm/policy/hot-warm-delete"
+    es_request --request PUT --data-binary @/config/it_logstash.json \
+      "${ES_URL_BASE}/_index_template/logstash"
+    es_request --request PUT --data-binary @/config/it_fluent-bit.json \
+      "${ES_URL_BASE}/_index_template/fluent-bit"
+    es_request --request PUT --data-binary @/config/single-node-settings.json \
+      "${ES_URL_BASE}/fluent-bit-*,logstash-*/_settings?allow_no_indices=true&expand_wildcards=open,closed"
+
+    health=$(es_request \
+      "${ES_URL_BASE}/_cluster/health?wait_for_status=green&timeout=60s")
+    printf '%s\n' "$health"
+    if ! printf '%s\n' "$health" | grep -Eq '"status"[[:space:]]*:[[:space:]]*"green"'; then
+      echo "Elasticsearch did not reach green health; inspect remaining unassigned shards." >&2
+      exit 1
+    fi
+  it_logstash.json: |+
+    {
+      "index_patterns": ["logstash-*"],
+      "template": {
+        "settings": {
+          "index": {
+            "lifecycle": {
+              "name": "hot-warm-delete",
+              "rollover_alias": "logstash"
+            },
+            "routing": {
+              "allocation": {
+                "include": {
+                  "_tier_preference": "data_content"
+                }
+              }
+            },
+            "number_of_shards": "1",
+            "number_of_replicas": "0"
+          }
+        },
+        "aliases": {
+          "logstash": {}
+        },
+        "mappings": {}
+      }
+    }
+  ilp_hot-warm-delete.json: |+
+    {
+      "policy": {
+        "phases": {
+          "hot": {
+            "min_age": "0ms",
+            "actions": {
+              "set_priority": {
+                "priority": 100
+              }
+            }
+          },
+          "warm": {
+            "min_age": "5d",
+            "actions": {
+              "set_priority": {
+                "priority": 50
+              }
+            }
+          },
+          "delete": {
+            "min_age": "10d",
+            "actions": {
+              "delete": {
+                "delete_searchable_snapshot": true
+              }
+            }
+          }
+        }
+      }
+    }
+
+kind: ConfigMap
+metadata:
+  name: es-customizer
+  namespace: monitoring

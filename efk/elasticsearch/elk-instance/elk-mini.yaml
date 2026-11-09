@@ -5,6 +5,7 @@ metadata:
   name: elk
 spec:
   version: 8.5.2
+  # Replica settings are index-level; es-customizer configures single-node log indices.
   nodeSets:
   - name: default
     count: 1

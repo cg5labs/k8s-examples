@@ -1,0 +1,45 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: escustomizer
+  namespace: monitoring
+  annotations:
+    argocd.argoproj.io/hook: PostSync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation,HookSucceeded
+spec:
+  backoffLimit: 3
+  activeDeadlineSeconds: 600
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+      - name: es-customizer
+        image: quay.io/curl/curl:latest
+        command:
+        - "/bin/sh"
+        - "/config/customize.sh"
+        volumeMounts:
+        - name: config
+          mountPath: "/config"
+          readOnly: true
+        - name: elasticsearch-ca
+          mountPath: "/certs"
+          readOnly: true
+        env:
+        - name: ES_URL_BASE
+          value: "https://elk-es-http.monitoring.svc:9200"
+        - name: ES_API_AUTH
+          valueFrom:
+            secretKeyRef:
+              name: elk-es-elastic-user
+              key: elastic
+      volumes:
+      - name: config
+        configMap:
+          name: es-customizer
+      - name: elasticsearch-ca
+        secret:
+          secretName: elk-es-http-certs-public
+          items:
+          - key: ca.crt
+            path: ca.crt
