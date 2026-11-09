@@ -21,7 +21,7 @@ replicaCount: 1
 ## ref: https://kubernetes.io/docs/concepts/services-networking/ingress/
 ##
 ingress:
-  enabled: true
+  enabled: false
   ingressClassName: "external-nginx"
   className: "external-nginx"
   annotations: 
