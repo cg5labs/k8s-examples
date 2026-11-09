@@ -1,0 +1,74 @@
+---
+apiVersion: v1
+data:
+  custom_parsers.conf: |
+    [PARSER]
+        Name docker_no_time
+        Format json
+        Time_Keep Off
+        Time_Key time
+        Time_Format %Y-%m-%dT%H:%M:%S.%L
+  fluent-bit.conf: |
+    [SERVICE]
+        Daemon Off
+        Flush 1
+        Log_Level info
+        Parsers_File parsers.conf
+        Parsers_File custom_parsers.conf
+        HTTP_Server On
+        HTTP_Listen 0.0.0.0
+        HTTP_Port 2020
+        Health_Check On
+
+    [INPUT]
+        Name tail
+        Path /var/log/containers/*.log
+        multiline.parser docker, cri
+        Tag kube.*
+        Mem_Buf_Limit 50MB
+        Skip_Long_Lines On
+        Ignore_Older 24h
+
+    [INPUT]
+        Name systemd
+        Tag host.*
+        Systemd_Filter _SYSTEMD_UNIT=kubelet.service
+        Read_From_Tail On
+
+    [FILTER]
+        Name kubernetes
+        Match kube.*
+        Merge_Log On
+        Keep_Log Off
+        K8S-Logging.Parser On
+        K8S-Logging.Exclude On
+        Buffer_Size 64KB
+
+    [OUTPUT]
+        Name es
+        Match kube.*
+        Host quickstart-es-http.monitoring.svc.cluster.local
+        Port 9200
+        tls on
+        tls.verify off
+        HTTP_User elastic
+        HTTP_Passwd n97o54XRGE9O1Hpr49gfZ91l
+        Logstash_Format On
+        Retry_Limit False
+        Suppress_Type_Name On
+        Replace_Dots On
+        Type _doc
+
+
+kind: ConfigMap
+metadata:
+  annotations:
+    meta.helm.sh/release-name: fluent-bit
+    meta.helm.sh/release-namespace: kube-system
+  labels:
+    app.kubernetes.io/instance: fluent-bit
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: fluent-bit
+    helm.sh/chart: fluent-bit-0.48.2
+  name: fluent-bit
+  namespace: kube-system
