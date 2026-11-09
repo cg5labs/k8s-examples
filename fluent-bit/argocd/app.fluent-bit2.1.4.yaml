@@ -9,18 +9,18 @@ metadata:
 spec:
   project: default
   source:
-    repoURL: 'https://fluent.github.io/helm-charts'
-    targetRevision: "0.48.4"
+    repoURL: 'https://github.com/cg5labs/k8s-examples.git'
+    targetRevision: master
+    path: fluent-bit
     helm:
       valueFiles:
         - values.yaml
-    chart: fluent-bit
   destination:
     server: 'https://kubernetes.default.svc'
-    namespace: kube-system
+    namespace: monitoring
   syncPolicy:
     automated:
       selfHeal: true
     syncOptions:
-      - CreateNamespace=false
+      - CreateNamespace=true
       - Replace=true

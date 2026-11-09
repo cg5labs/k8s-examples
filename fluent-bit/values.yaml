@@ -1,0 +1,49 @@
+# Values are nested under the upstream dependency name for the wrapper chart.
+# Deploy in monitoring so the Elasticsearch Secrets are available to the pods.
+fluent-bit:
+  kind: DaemonSet
+
+  tolerations:
+    - operator: Exists
+      effect: NoSchedule
+
+  env:
+    - name: ELASTICSEARCH_PASSWORD
+      valueFrom:
+        secretKeyRef:
+          name: elk-es-elastic-user
+          key: elastic
+
+  extraVolumes:
+    - name: elasticsearch-ca
+      secret:
+        secretName: elk-es-http-certs-public
+        items:
+          - key: ca.crt
+            path: ca.crt
+
+  extraVolumeMounts:
+    - name: elasticsearch-ca
+      mountPath: /fluent-bit/etc/elasticsearch
+      readOnly: true
+
+  config:
+    # Collect both Kubernetes container logs (kube.*) and kubelet logs (host.*).
+    outputs: |
+      [OUTPUT]
+          Name es
+          Match *
+          Host elk-es-http.monitoring.svc
+          Port 9200
+          HTTP_User elastic
+          HTTP_Passwd ${ELASTICSEARCH_PASSWORD}
+          tls On
+          tls.verify On
+          tls.verify_hostname On
+          tls.ca_file /fluent-bit/etc/elasticsearch/ca.crt
+          Logstash_Format On
+          Logstash_Prefix fluent-bit
+          Suppress_Type_Name On
+          Replace_Dots On
+          Generate_ID On
+          Retry_Limit False
