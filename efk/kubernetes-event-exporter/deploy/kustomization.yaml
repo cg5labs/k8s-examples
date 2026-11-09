@@ -1,0 +1,10 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: monitoring
+resources:
+  - 00-roles.yaml
+  - 02-deployment.yaml
+configMapGenerator:
+  - name: event-exporter-cfg
+    files:
+      - config.yaml

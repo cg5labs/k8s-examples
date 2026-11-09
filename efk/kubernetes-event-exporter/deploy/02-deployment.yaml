@@ -5,6 +5,8 @@ metadata:
   namespace: monitoring
 spec:
   replicas: 1
+  strategy:
+    type: Recreate
   template:
     metadata:
       labels:
@@ -17,22 +19,35 @@ spec:
           image: ghcr.io/opsgenie/kubernetes-event-exporter:v0.10
           imagePullPolicy: IfNotPresent
           env:
-          - name: FLUENT_ELASTICSEARCH_USER
+          - name: ELASTICSEARCH_USER
             value: "elastic"
-          - name: FLUENT_ELASTICSEARCH_PASSWORD
+          - name: ELASTICSEARCH_PASSWORD
             valueFrom:
               secretKeyRef:
-                name: elastic-user
+                name: elk-es-elastic-user
                 key: elastic
+          # v0.10 only loads tls.caFile with client certificates; use Go's root CA loader.
+          - name: SSL_CERT_FILE
+            value: /certs/ca.crt
           args:
             - -conf=/data/config.yaml
           volumeMounts:
             - mountPath: /data
               name: cfg
+              readOnly: true
+            - mountPath: /certs
+              name: elasticsearch-ca
+              readOnly: true
       volumes:
         - name: cfg
+          configMap:
+            name: event-exporter-cfg
+        - name: elasticsearch-ca
           secret:
-            secretName: event-exporter-cfg
+            secretName: elk-es-http-certs-public
+            items:
+              - key: ca.crt
+                path: ca.crt
   selector:
     matchLabels:
       app: event-exporter
