@@ -1,5 +1,18 @@
 apiVersion: v1
 data:
+  it_kube-events.json: |
+    {
+      "index_patterns": ["kube-events", "kube-events-*"],
+      "priority": 200,
+      "template": {
+        "settings": {
+          "index": {
+            "number_of_shards": "1",
+            "number_of_replicas": "0"
+          }
+        }
+      }
+    }
   it_fluent-bit.json: |
     {
       "index_patterns": ["fluent-bit-*"],
@@ -42,8 +55,10 @@ data:
       "${ES_URL_BASE}/_index_template/logstash"
     es_request --request PUT --data-binary @/config/it_fluent-bit.json \
       "${ES_URL_BASE}/_index_template/fluent-bit"
+    es_request --request PUT --data-binary @/config/it_kube-events.json \
+      "${ES_URL_BASE}/_index_template/kube-events"
     es_request --request PUT --data-binary @/config/single-node-settings.json \
-      "${ES_URL_BASE}/fluent-bit-*,logstash-*/_settings?allow_no_indices=true&expand_wildcards=open,closed"
+      "${ES_URL_BASE}/fluent-bit-*,logstash-*,kube-events,kube-events-*/_settings?allow_no_indices=true&ignore_unavailable=true&expand_wildcards=open,closed"
 
     health=$(es_request \
       "${ES_URL_BASE}/_cluster/health?wait_for_status=green&timeout=60s")

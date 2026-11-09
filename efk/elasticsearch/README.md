@@ -61,7 +61,7 @@ The Job runs sequentially:
 
 1. Creates the existing `hot-warm-delete` ILM policy and zero-replica Logstash template.
 2. Creates a zero-replica `fluent-bit-*` template for future daily Fluent Bit indices.
-3. Sets existing `fluent-bit-*` and `logstash-*` indices to zero replicas and disables automatic replica expansion.
+3. Creates a zero-replica `kube-events`/`kube-events-*` template and sets existing Fluent Bit, Logstash and event indices to zero replicas, disabling automatic replica expansion.
 4. Waits up to 60 seconds for green cluster health, failing visibly if unassigned shards remain.
 
 Authentication uses the `elastic` key from `monitoring/elk-es-elastic-user`.
