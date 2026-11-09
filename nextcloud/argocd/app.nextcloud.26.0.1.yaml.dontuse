@@ -12,6 +12,7 @@ spec:
     repoURL: 'https://nextcloud.github.io/helm/'
     targetRevision: "3.5.12"
     helm:
+      releaseName: nc
       valueFiles:
         - values.yaml
     chart: nextcloud

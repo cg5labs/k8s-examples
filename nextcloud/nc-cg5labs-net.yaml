@@ -1,0 +1,99 @@
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: nc-lan-only
+  namespace: nextcloud
+  annotations:
+    kubernetes.io/ingress.class: traefik-external
+spec:
+  ipAllowList:
+    sourceRange:
+      - 192.168.17.0/24
+---
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: nc-body-limit
+  namespace: nextcloud
+  annotations:
+    kubernetes.io/ingress.class: traefik-external
+spec:
+  buffering:
+    maxRequestBodyBytes: 25165824
+---
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: nc-remove-powered-by
+  namespace: nextcloud
+  annotations:
+    kubernetes.io/ingress.class: traefik-external
+spec:
+  headers:
+    customResponseHeaders:
+      X-Powered-By: ""
+---
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: nc-force-https
+  namespace: nextcloud
+  annotations:
+    kubernetes.io/ingress.class: traefik-external
+spec:
+  redirectScheme:
+    scheme: https
+    permanent: true
+---
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: nc-http
+  namespace: nextcloud
+  annotations:
+    kubernetes.io/ingress.class: traefik-external
+spec:
+  entryPoints:
+    - web
+  routes:
+    - match: 'Host(`nc.cg5labs.net`) && PathPrefix(`/`)'
+      kind: Rule
+      priority: 100
+      middlewares:
+        - name: nc-force-https
+      services:
+        - name: nc-nextcloud
+          port: 8080
+---
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: nc-https
+  namespace: nextcloud
+  annotations:
+    kubernetes.io/ingress.class: traefik-external
+spec:
+  entryPoints:
+    - websecure
+  routes:
+    - match: 'Host(`nc.cg5labs.net`) && (Path(`/.well-known/caldav`) || Path(`/.well-known/caldav/`) || Path(`/remote.php/dav`) || Path(`/remote.php/dav/`) || Path(`/remote.php/dav/principals`) || PathPrefix(`/remote.php/dav/principals/`) || Path(`/remote.php/dav/calendars`) || PathPrefix(`/remote.php/dav/calendars/`))'
+      kind: Rule
+      priority: 200
+      middlewares:
+        - name: nc-body-limit
+        - name: nc-remove-powered-by
+      services:
+        - name: nc-nextcloud
+          port: 8080
+    - match: 'Host(`nc.cg5labs.net`) && PathPrefix(`/`)'
+      kind: Rule
+      priority: 100
+      middlewares:
+        - name: nc-lan-only
+        - name: nc-body-limit
+        - name: nc-remove-powered-by
+      services:
+        - name: nc-nextcloud
+          port: 8080
+  tls:
+    secretName: nc-tls

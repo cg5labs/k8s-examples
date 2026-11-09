@@ -1,0 +1,78 @@
+image:
+  registry: docker.io
+  repository: library/nextcloud
+  flavor: fpm
+
+replicaCount: 1
+ingress:
+  enabled: false
+
+nginx:
+  enabled: true
+  config:
+    default: true
+
+nextcloud:
+  host: nc.cg5labs.net
+  trustedDomains:
+    - nc.cg5labs.net
+  existingSecret:
+    enabled: true
+    secretName: nc-bootstrap-admin
+    usernameKey: nextcloud-username
+    passwordKey: nextcloud-password
+  strategy:
+    type: Recreate
+  phpConfigs:
+    security.ini: |
+      expose_php = Off
+  extraEnv:
+    - name: TRUSTED_PROXIES
+      value: "10.244.0.0/16"
+    - name: OVERWRITEHOST
+      value: nc.cg5labs.net
+    - name: OVERWRITEPROTOCOL
+      value: https
+    - name: OVERWRITECLIURL
+      value: https://nc.cg5labs.net
+
+internalDatabase:
+  enabled: false
+externalDatabase:
+  enabled: true
+  type: postgresql
+  host: postgres-nextcloud-ha.nextcloud.svc
+  database: postgres-nextcloud
+  existingSecret:
+    enabled: true
+    secretName: postgres-nextcloud-pguser-postgres-nextcloud
+    usernameKey: user
+    passwordKey: password
+
+mariadb:
+  enabled: false
+postgresql:
+  enabled: false
+redis:
+  enabled: false
+
+service:
+  type: ClusterIP
+  port: 8080
+
+persistence:
+  enabled: true
+  storageClass: nfs
+  accessMode: ReadWriteOnce
+  size: 5Gi
+  nextcloudData:
+    enabled: false
+
+cronjob:
+  enabled: true
+  type: sidecar
+
+startupProbe:
+  enabled: true
+  periodSeconds: 10
+  failureThreshold: 60
